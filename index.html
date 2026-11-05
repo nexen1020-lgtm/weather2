@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!-- 문서 유형을 HTML5로 선언합니다. -->
+<html lang="ko">
+<!-- 한국어를 기본 언어로 지정합니다. -->
+<head>
+    <!-- 문자 인코딩을 UTF-8로 지정합니다. -->
+    <meta charset="UTF-8">
+    <!-- 모바일 환경에서도 깨지지 않도록 반응형 뷰포트를 설정합니다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 웹페이지 제목입니다. -->
+    <title>실시간 날씨 신호등 - 기상청 날씨 정보</title>
+
+    <!-- 프리텐다드(Pretendard) 웹폰트 CDN을 연결합니다. -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <!-- Chart.js 라이브러리 CDN을 연결합니다. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- 외부 스타일시트인 style.css 파일을 연결합니다. -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<!-- 실제 웹 화면 본문 영역입니다. -->
+<body>
+    <!-- 전체 화면을 중앙 정렬하는 메인 컨테이너입니다. -->
+    <div class="app-container">
+
+        <!-- 상단 헤더: 앱 타이틀 및 지역 선택 드롭다운 -->
+        <header class="app-header">
+            <h1 class="app-title">⛅ 오늘의 날씨 신호등</h1>
+            <div class="select-wrapper">
+                <label for="city-select" class="visually-hidden">지역 선택</label>
+                <select id="city-select" class="city-select" aria-label="지역 선택">
+                    <option value="서울" selected>서울</option>
+                    <option value="경기">경기(수원)</option>
+                    <option value="인천">인천</option>
+                    <option value="강원">강원(춘천)</option>
+                    <option value="충북">충북(청주)</option>
+                    <option value="충남">충남(홍성)</option>
+                    <option value="대전">대전</option>
+                    <option value="세종">세종</option>
+                    <option value="전북">전북(전주)</option>
+                    <option value="전남">전남(무안)</option>
+                    <option value="광주">광주</option>
+                    <option value="경북">경북(안동)</option>
+                    <option value="경남">경남(창원)</option>
+                    <option value="대구">대구</option>
+                    <option value="울산">울산</option>
+                    <option value="부산">부산</option>
+                    <option value="제주">제주</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- 핵심: 맨 위 그 지역 대표 날씨 상태를 아주 크게 보여주는 대형 Hero 카드 -->
+        <section class="weather-hero" id="weather-hero">
+            <!-- 상단 지역명 및 발표 시각 배지 -->
+            <div class="hero-top-info">
+                <span class="region-badge" id="hero-region-name">서울</span>
+                <span class="base-time-text" id="hero-base-time">기상 정보 확인 중...</span>
+            </div>
+
+            <!-- 날씨 대표 상태: 대형 이모지(☀️⛅☁️🌧️❄️) + 현재 기온 + 상태 문구 -->
+            <div class="weather-main-display">
+                <!-- 날씨 아이콘/이모지 표시 요소입니다. -->
+                <div class="weather-emoji" id="weather-emoji" aria-hidden="true">☀️</div>
+
+                <!-- 기온 및 상태 텍스트 그룹입니다. -->
+                <div class="weather-text-group">
+                    <div class="weather-status-label" id="weather-status">맑음</div>
+                    <div class="weather-temp-wrap">
+                        <span class="weather-temp-number" id="weather-temp">-</span>
+                        <span class="weather-temp-unit">℃</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 기상 상세 수치(습도, 풍속, 강수량) 배지 그룹 -->
+            <div class="weather-meta-pills">
+                <div class="meta-pill">
+                    <span class="pill-label">습도</span>
+                    <span class="pill-val" id="weather-humidity">-%</span>
+                </div>
+                <div class="meta-pill">
+                    <span class="pill-label">바람</span>
+                    <span class="pill-val" id="weather-wind">- m/s</span>
+                </div>
+                <div class="meta-pill">
+                    <span class="pill-label">1시간 강수</span>
+                    <span class="pill-val" id="weather-rain">- mm</span>
+                </div>
+            </div>
+
+            <!-- 한 줄 생활 안내 문구 (비/눈 시 우산 안내 등) -->
+            <div class="weather-guide-box" id="weather-guide-box">
+                <p class="weather-guide-text" id="weather-guide-text">실시간 기상 정보를 불러오는 중입니다...</p>
+            </div>
+        </section>
+
+        <!-- 데이터를 불러오는 동안 표시되는 로딩 영역 -->
+        <div class="loading-state" id="loading-box">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="loading-text">기상청 실시간 데이터를 불러오는 중입니다...</p>
+        </div>
+
+        <!-- 에러 발생 시 안내 영역 -->
+        <div class="error-state" id="error-box" style="display: none;">
+            <p class="error-text" id="error-message">데이터를 불러오지 못했습니다.</p>
+        </div>
+
+        <!-- [차트] 오늘 시간대별 기온 변화 가로/곡선 그래프 섹션 (Chart.js) -->
+        <section class="chart-section" id="chart-section">
+            <div class="chart-header">
+                <div>
+                    <h2 class="section-heading">📈 시간대별 기온 예보</h2>
+                    <p class="chart-subtitle">향후 6시간 동안의 기온 추이 (단위: ℃)</p>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </section>
+
+        <!-- 전국 주요 지역 날씨 카드 그리드 섹션 -->
+        <section class="cities-section">
+            <div class="cities-section-header">
+                <h2 class="section-heading">전국 주요 지역 날씨 현황</h2>
+                <span class="cities-subtext">실시간 도시별 기온 및 날씨</span>
+            </div>
+            <div class="cities-grid" id="cities-grid">
+                <!-- 자바스크립트로 각 도시 카드가 동적으로 채워집니다. -->
+            </div>
+        </section>
+
+        <!-- 푸터 영역 -->
+        <footer class="app-footer">
+            <p>데이터 출처: 기상청 단기예보 조회서비스 (공공데이터포털)</p>
+        </footer>
+    </div>
+
+    <!-- 기능 구현 자바스크립트 파일 연결 -->
+    <script src="script.js"></script>
+</body>
+</html>
+
